@@ -1,0 +1,14 @@
+fastapi[all]
+uvicorn[standard]
+sqlglot
+asyncpg
+redis[async]
+celery[redis]
+python-dotenv
+pydantic
+openai
+psycopg2-binary
+openpyxl
+xlrd
+# Add your preferred LLM SDK (e.g., anthropic, together) as needed
+

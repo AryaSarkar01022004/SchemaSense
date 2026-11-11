@@ -1,0 +1,15 @@
+.env
+.env.local
+backend/.env
+backend/llm_settings.json
+backend/uploads/
+*.db
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+frontend/.next/
+frontend/out/
+.DS_Store
+*.tsbuildinfo
+

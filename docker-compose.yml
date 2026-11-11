@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+  # SchemaSense App Control Plane DB (with pgvector)
+  app-db:
+    image: pgvector/pgvector:pg16
+    container_name: schemasense-app-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: schemasense_app
+    ports:
+      - "5432:5432"
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+      - ./backend/sql/01_app_postgres_schema.sql:/docker-entrypoint-initdb.d/01_app_postgres_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d schemasense_app"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Target Customer Database to be queried and explored
+  target-db:
+    image: postgres:16-alpine
+    container_name: schemasense-target-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - target_db_data:/var/lib/postgresql/data
+      - ./backend/sql/02_target_postgres_demo.sql:/docker-entrypoint-initdb.d/02_target_postgres_demo.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis cache and Celery broker
+  redis:
+    image: redis:7-alpine
+    container_name: schemasense-redis
+    ports:
+      - "6379:6379"
+
+  # SchemaSense FastAPI & Orchestrator API
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: schemasense-api
+    command: python run_api.py
+    environment:
+      DEBUG: "true"
+      HOST: "0.0.0.0"
+      PORT: "8000"
+      DATABASE_URL: "postgresql+asyncpg://postgres:postgrespassword@app-db:5432/schemasense_app"
+      REDIS_URL: "redis://redis:6379/0"
+      MASTER_ENCRYPTION_KEY: "schemasense-master-secret-key-32b-min!!"
+      LLM_PROVIDER: "mock" # Set to "openai" or "gemini" if API key available
+    volumes:
+      - ./backend:/app
+      - ./demo_target.db:/app/demo_target.db
+    ports:
+      - "8000:8000"
+    depends_on:
+      app-db:
+        condition: service_healthy
+      target-db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  # Next.js 14 Frontend UI
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: schemasense-frontend
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: "http://api:8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - api
+
+volumes:
+  app_db_data:
+  target_db_data:
