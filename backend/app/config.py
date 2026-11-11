@@ -3,7 +3,14 @@ import json
 from dataclasses import dataclass, field
 from typing import Optional, Dict, Any
 
-SETTINGS_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "llm_settings.json")
+_BACKEND_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DATA_DIR = (
+    os.getenv("SCHEMASENSE_DATA_DIR")
+    or os.getenv("RAILWAY_VOLUME_MOUNT_PATH")
+    or ""
+).strip()
+
+SETTINGS_FILE = os.path.join(_DATA_DIR or _BACKEND_ROOT, "llm_settings.json")
 
 
 @dataclass
@@ -11,6 +18,15 @@ class Settings:
     DEBUG: bool = field(default_factory=lambda: os.getenv("DEBUG", "true").lower() in ("true", "1", "yes"))
     HOST: str = field(default_factory=lambda: os.getenv("HOST", "0.0.0.0"))
     PORT: int = field(default_factory=lambda: int(os.getenv("PORT", "8000")))
+
+    # Persistent local SQLite paths (automatically use Railway volume when attached)
+    DATA_DIR: str = field(default_factory=lambda: _DATA_DIR)
+    APP_DB_PATH: str = field(
+        default_factory=lambda: os.path.join(_DATA_DIR, "schemasense_app.db") if _DATA_DIR else "schemasense_app.db"
+    )
+    DEMO_DB_PATH: str = field(
+        default_factory=lambda: os.path.join(_DATA_DIR, "demo_target.db") if _DATA_DIR else "demo_target.db"
+    )
 
     # App Database (Postgres or SQLite)
     DATABASE_URL: str = field(default_factory=lambda: os.getenv(
@@ -52,8 +68,8 @@ class Settings:
     SMTP_PASSWORD: Optional[str] = field(default_factory=lambda: os.getenv("SMTP_PASSWORD"))
 
     # File upload storage directory
-    UPLOAD_DIR: str = field(default_factory=lambda: os.path.join(
-        os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "uploads"
+    UPLOAD_DIR: str = field(default_factory=lambda: (
+        os.path.join(_DATA_DIR, "uploads") if _DATA_DIR else os.path.join(_BACKEND_ROOT, "uploads")
     ))
 
     def __post_init__(self):

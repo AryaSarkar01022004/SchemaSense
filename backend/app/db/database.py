@@ -18,8 +18,11 @@ from app.db.models import (
 
 
 class Database:
-    def __init__(self, db_path: str = "schemasense_app.db"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = db_path or settings.APP_DB_PATH
+        parent_dir = os.path.dirname(os.path.abspath(self.db_path))
+        if parent_dir:
+            os.makedirs(parent_dir, exist_ok=True)
         self._init_sqlite()
 
     def get_connection(self) -> sqlite3.Connection:
